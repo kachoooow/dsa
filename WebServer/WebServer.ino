@@ -1,142 +1,147 @@
-/*
- Web Server
-
- A simple web server that shows the value of the analog input pins.
- using an Arduino WIZnet Ethernet shield.
-
- Circuit:
- * Ethernet shield attached to pins 10, 11, 12, 13
- * Analog inputs attached to pins A0 through A5 (optional)
-
- created 18 Dec 2009
- by David A. Mellis
- modified 9 Apr 2012
- by Tom Igoe
- modified 02 Sept 2015
- by Arturo Guadalupi
- 
- */
-float izracunTemp (int vrednost){
-  float rezultat;
-  rezultat = (vrednost/1023.0*5000.0-400.0)/19.53;
-  return rezultat;
-}
-
 #include <SPI.h>
 #include <Ethernet.h>
 
+float izracunTemp(int vrednost) {
+  float rezultat;
+  rezultat = (vrednost / 1023.0 * 5000.0 - 400.0) / 19.53;
+  return rezultat;
+}
+
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x28
-};
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x28};
 IPAddress ip(10, 8, 128, 42);
 
-// Initialize the Ethernet server library
-// with the IP address and port you want to use
-// (port 80 is default for HTTP):
+// Initialize the Ethernet server library with the IP address and port you want to use
 EthernetServer server(80);
 
-void setup() {
-  // You can use Ethernet.init(pin) to configure the CS pin
-  //Ethernet.init(10);  // Most Arduino shields
-  //Ethernet.init(5);   // MKR ETH Shield
-  //Ethernet.init(0);   // Teensy 2.0
-  //Ethernet.init(20);  // Teensy++ 2.0
-  //Ethernet.init(15);  // ESP8266 with Adafruit FeatherWing Ethernet
-  //Ethernet.init(33);  // ESP32 with Adafruit FeatherWing Ethernet
+// LED pin
+const int ledPin = 2;
+bool blinkLED = false;
 
-  // Open serial communications and wait for port to open:
+void setup() {
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW); // Ensure LED is off initially
+
+  // Start serial communication
   Serial.begin(9600);
   while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
+    ; // Wait for serial port to connect. Needed for native USB port only
   }
   Serial.println("Ethernet WebServer Example");
 
-  // start the Ethernet connection and the server:
+  // Start the Ethernet connection and the server
   Ethernet.begin(mac, ip);
 
   // Check for Ethernet hardware present
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    Serial.println("Ethernet shield was not found. Sorry, can't run without hardware. :(");
     while (true) {
-      delay(1); // do nothing, no point running without Ethernet hardware
+      delay(1); // Do nothing, no point running without Ethernet hardware
     }
   }
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
   }
 
-  // start the server
+  // Start the server
   server.begin();
-  Serial.print("server is at ");
+  Serial.print("Server is at ");
   Serial.println(Ethernet.localIP());
 }
 
-
 void loop() {
-  // listen for incoming clients
+  // Listen for incoming clients
   EthernetClient client = server.available();
   if (client) {
-    Serial.println("new client");
-    // an HTTP request ends with a blank line
-    bool currentLineIsBlank = true;
+    Serial.println("New client");
+    String currentLine = ""; // Make a String to hold incoming data from the client
+
     while (client.connected()) {
       if (client.available()) {
         char c = client.read();
         Serial.write(c);
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the HTTP request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-          // send a standard HTTP response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 15");  // refresh the page automatically every 5 sec
-          client.println();
-          client.println("<!DOCTYPE HTML>");
-          client.println("<html>");
-          client.println("<h1 style=""background-color:DodgerBlue;""> MOJ DOMACI STREZNIK</h1>");
-          //client.println("<h1 style="background-color:rgb(255, 99, 71)">");
-          // output the value of each analog input pin
-          
-            
-          
 
-
-          // the loop routine runs over and over again forever:
-
-           // read the input on analog pin 0:
-            int sensorValue = analogRead(A1);
-  
-            float temperatura = izracunTemp(sensorValue);
-            client.println("temperatura je: ");
-            client.println(temperatura);
-            delay(200);  // delay in between reads for stability
-            client.println("<br>");
-
-            int svetlost= analogRead(A0);
-            client.println("svetlost je: ");
-            client.println(svetlost);
-            client.println("</h1");
-          
-          client.println("</html>");
-          break;
-        }
         if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
+          // If the current line is blank, you got two newline characters in a row.
+          // That's the end of the client HTTP request, so send a response.
+          if (currentLine.length() == 0) {
+            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: text/html");
+            client.println("Connection: close"); // The connection will be closed after completion of the response
+            client.println("Refresh: 15"); // Refresh the page automatically every 15 seconds
+            client.println();
+            client.println("<!DOCTYPE HTML>");
+            client.println("<html>");
+            client.println("<head>");
+            client.println("<style>");
+            client.println("body { font-family: Arial, sans-serif; background-color: #f0f0f0; }");
+            client.println("h1 { background-color: DodgerBlue; color: white; padding: 10px; }");
+            client.println("button { padding: 10px 20px; margin: 5px; font-size: 16px; border-radius: 12px; }");
+            client.println("</style>");
+            client.println("</head>");
+            client.println("<body>");
+            client.println("<h1>MOJ DOMACI STREZNIK</h1>");
+
+            // Output the value of each analog input pin
+            int sensorValue = analogRead(A1);
+            float temperatura = izracunTemp(sensorValue);
+            client.println("<p>Temperatura je: ");
+            client.println(temperatura);
+            client.println("</p>");
+            delay(200); // Delay in between reads for stability
+            int svetlost = analogRead(A0);
+            client.println("<p>Svetlost je: ");
+            client.println(svetlost);
+            client.println("</p>");
+
+            // Add buttons for LED control
+            client.println("<br><br>");
+            client.println("<button onclick=\"location.href='H'\">Vklopi LED</button>");
+            client.println("<button onclick=\"location.href='L'\">Izklopi LED</button>");
+            client.println("<button onclick=\"location.href='B'\">Utripanje LED</button>");
+
+            client.println("</body>");
+            client.println("</html>");
+            break;
+          }
+          else {
+            currentLine = "";
+          }
+        }
+        else if (c != '\r') {
+          currentLine += c; // Add character to currentLine
+
+          // Check for the LED control commands
+          if (currentLine.endsWith("GET /H")) {
+            controlLED(HIGH);
+            blinkLED = false;
+          } else if (currentLine.endsWith("GET /L")) {
+            controlLED(LOW);
+            blinkLED = false;
+          } else if (currentLine.endsWith("GET /B")) {
+            blinkLED = true;
+          }
         }
       }
     }
-    // give the web browser time to receive the data
+    // Give the web browser time to receive the data
     delay(1);
-    // close the connection:
+    // Close the connection
     client.stop();
-    Serial.println("client disconnected");
+    Serial.println("Client disconnected");
   }
+
+  // Blink LED if blink mode is enabled
+  if (blinkLED) {
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
+  }
+}
+
+void controlLED(int state) {
+  digitalWrite(ledPin, state);
 }
